@@ -1,21 +1,25 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getPosts, deletePost, type Post } from './services/api';
 import { CreatePostModal } from './components/CreatePostModal';
-import './App.css';
+import { PostDetail } from './components/PostDetail';
 
-function App() {
+export default function App() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const fetchPosts = useCallback(async (query?: string) => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getPosts(query);
       setPosts(data);
     } catch (err) {
       console.error('Failed to fetch posts:', err);
+      setError('Unable to connect to the backend server.');
     } finally {
       setLoading(false);
     }
@@ -27,87 +31,151 @@ function App() {
   }, [fetchPosts]);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-    fetchPosts(e.target.value);
+    const query = e.target.value;
+    setSearch(query);
+    fetchPosts(query);
   };
 
   const handleDelete = async (id?: number) => {
     if (!id) return;
+
+    // Prompt the user for confirmation before proceeding
+    const confirmed = window.confirm("Are you sure you want to delete this post?");
+    if (!confirmed) return;
+
     try {
+      setError(null);
       await deletePost(id);
       fetchPosts(search);
+      if (selectedPost?.id === id) {
+        setSelectedPost(null);
+      }
     } catch (err) {
       console.error('Failed to delete post:', err);
+      setError('Failed to delete the article.');
     }
   };
 
-  return (
-    <div style={{ width: '100%', minHeight: '100vh', padding: '30px 40px', boxSizing: 'border-box', fontFamily: 'Arial, sans-serif' }}>
+  if (selectedPost) {
+    return (
+      <div style={{ width: '100%', minHeight: '100vh', backgroundColor: '#121212', color: '#fff', fontFamily: 'Arial, sans-serif' }}>
+        <nav style={{ padding: '20px 40px', borderBottom: '1px solid #222', backgroundColor: '#1a1a1a' }}>
+          <h2 style={{ margin: 0, fontSize: '22px', color: '#fff' }}>TECH BLOG</h2>
+        </nav>
+        <PostDetail post={selectedPost} onBack={() => setSelectedPost(null)} onDelete={handleDelete} />
+      </div>
+    );
+  }
 
-      {/* Top Header Row: Title pushed far left, Button pushed far right */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #333', paddingBottom: '20px', width: '100%' }}>
-        <div style={{ textAlign: 'left' }}>
-          <h1 style={{ margin: 0, color: '#fff', fontSize: '28px' }}>Tech Blog Platform</h1>
-          <p style={{ margin: '5px 0 0 0', color: '#aaa', fontSize: '14px' }}>A full-stack web application built with Java Spring Boot and React.</p>
-        </div>
+  return (
+    <div style={{ width: '100%', minHeight: '100vh', backgroundColor: '#121212', color: '#fff', fontFamily: 'Arial, sans-serif', boxSizing: 'border-box' }}>
+
+      {/* Navigation */}
+      <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 40px', borderBottom: '1px solid #222', backgroundColor: '#1a1a1a' }}>
+        <h2 style={{ margin: 0, fontSize: '22px', color: '#fff' }}>TECH BLOG</h2>
         <button
           onClick={() => setIsModalOpen(true)}
-          style={{ background: '#28a745', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+          style={{ background: '#e05638', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
         >
           + Create Article
         </button>
+      </nav>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{ backgroundColor: '#e53e3e', color: 'white', padding: '12px 20px', textAlign: 'center', fontWeight: 'bold' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Hero Banner */}
+      <div style={{ background: 'linear-gradient(135deg, #1f3b4d 0%, #111e28 100%)', padding: '60px 40px', borderBottom: '1px solid #333', textAlign: 'left' }}>
+        <h1 style={{ margin: 0, fontSize: '48px', color: '#fff' }}>BLOG</h1>
+        <p style={{ margin: '10px 0 0 0', color: '#a0aec0', fontSize: '16px' }}>Discover the latest insights, tutorials, and tech articles.</p>
       </div>
 
-      {/* Modal Popup Component */}
-      <CreatePostModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onPostCreated={() => fetchPosts(search)}
-      />
+      {/* Main Container */}
+      <div style={{ maxWidth: '1000px', margin: '40px auto', padding: '0 20px' }}>
 
-      {/* Search Bar */}
-      <div style={{ marginBottom: '25px', width: '100%' }}>
-        <input
-          type="text"
-          placeholder="Search posts by title or tags..."
-          value={search}
-          onChange={handleSearchChange}
-          style={{ width: '100%', padding: '12px 15px', fontSize: '16px', borderRadius: '6px', border: '1px solid #555', background: '#1e1e1e', color: '#fff', boxSizing: 'border-box' }}
+        {/* Search Input */}
+        <div style={{ marginBottom: '35px' }}>
+          <input
+            type="text"
+            placeholder="Search articles by title or tags..."
+            value={search}
+            onChange={handleSearchChange}
+            style={{ width: '100%', padding: '14px 18px', fontSize: '16px', borderRadius: '6px', border: '1px solid #444', background: '#1e1e1e', color: '#fff', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Modal */}
+        <CreatePostModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onPostCreated={() => fetchPosts(search)}
         />
-      </div>
 
-      {/* Posts Feed */}
-      <section style={{ width: '100%' }}>
-        <h3 style={{ color: '#fff', marginBottom: '15px' }}>Articles Feed</h3>
-        {loading ? (
-          <p style={{ color: '#aaa' }}>Loading posts...</p>
-        ) : posts.length === 0 ? (
-          <p style={{ color: '#aaa' }}>No articles found.</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} style={{ background: '#1e1e1e', padding: '20px', borderRadius: '8px', marginBottom: '15px', border: '1px solid #333', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
-              <h2 style={{ margin: '0 0 10px 0', color: '#fff' }}>{post.title}</h2>
-              <p style={{ color: '#ccc', lineHeight: '1.5' }}>{post.content}</p>
-              {post.tags && (
-                <p style={{ fontSize: '12px', color: '#4dabf7', margin: '10px 0' }}>
-                  <strong>Tags:</strong> {post.tags}
-                </p>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' }}>
-                <span style={{ fontSize: '12px', color: '#888' }}>Published on: {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : 'Recent'}</span>
-                <button
-                  onClick={() => handleDelete(post.id)}
-                  style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Delete
-                </button>
-              </div>
-            </article>
-          ))
-        )}
-      </section>
+        {/* Feed Section */}
+        <section>
+          {loading ? (
+            <p style={{ color: '#888', textAlign: 'center' }}>Loading articles...</p>
+          ) : posts.length === 0 ? (
+            <p style={{ color: '#888', textAlign: 'center' }}>No articles found.</p>
+          ) : (
+            posts.map((post) => {
+              const summaryContent = post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content;
+
+              return (
+                <article key={post.id} style={{ display: 'flex', gap: '30px', background: '#1a1a1a', padding: '25px', borderRadius: '8px', marginBottom: '25px', border: '1px solid #2a2a2a', alignItems: 'flex-start' }}>
+
+                  {/* Thumbnail */}
+                  <div style={{ width: '180px', height: '140px', backgroundColor: '#2a2a2a', borderRadius: '6px', overflow: 'hidden', flexShrink: '0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    {post.imageUrl ? (
+                      <img src={post.imageUrl} alt={post.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ color: '#555', fontSize: '12px', fontWeight: 'bold' }}>TECH BLOG</span>
+                    )}
+                  </div>
+
+                  {/* Content Info */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ fontSize: '12px', color: '#e05638', fontWeight: 'bold' }}>
+                        {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : 'Recent'}
+                      </span>
+                      <h2 style={{ margin: '6px 0 10px 0', color: '#fff', fontSize: '22px' }}>{post.title}</h2>
+                      <p style={{ color: '#aaa', lineHeight: '1.6', fontSize: '14px', margin: '0 0 12px 0' }}>{summaryContent}</p>
+
+                      {post.tags && (
+                        <p style={{ fontSize: '12px', color: '#4dabf7', margin: '0 0 15px 0' }}>
+                          <strong>Tags:</strong> {post.tags}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #252525', paddingTop: '15px' }}>
+                      <button
+                        onClick={() => setSelectedPost(post)}
+                        style={{ background: '#e05638', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}
+                      >
+                        Read More
+                      </button>
+
+                      <button
+                        onClick={() => handleDelete(post.id)}
+                        style={{ background: 'transparent', color: '#e53e3e', border: '1px solid #e53e3e', padding: '5px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </section>
+      </div>
     </div>
   );
 }
-
-export default App;

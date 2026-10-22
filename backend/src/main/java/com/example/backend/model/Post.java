@@ -21,6 +21,7 @@ public class Post {
 
     private String tags; // e.g., "Java,Spring,React"
     
+    @Column(columnDefinition = "TEXT")
     private String imageUrl; // Bonus feature: image upload
 
     @ManyToOne(fetch = FetchType.EAGER)
